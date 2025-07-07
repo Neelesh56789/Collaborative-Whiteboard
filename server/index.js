@@ -5,18 +5,24 @@ const cors = require('cors');
 const db = require('./database');
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: 'https://collaborative-whiteboard-scmr.onrender.com',
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
+
 app.use(express.json({ limit: '5mb' }));
 
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "*", // Using "*" for simplicity during debugging
-    methods: ["GET", "POST"]
+    origin: 'https://collaborative-whiteboard-scmr.onrender.com',
+    methods: ['GET', 'POST']
   },
   maxHttpBufferSize: 5e6
 });
+
 
 io.on('connection', (socket) => {
   console.log(`[SERVER] User Connected: ${socket.id}`);
@@ -26,9 +32,7 @@ io.on('connection', (socket) => {
     console.log(`[SERVER] User ${socket.id} joined room: ${roomId}`);
   });
 
-  // THE DEFINITIVE FIX IS HERE
   socket.on('drawing', (data) => {
-    // We log the room ID to ensure the server is receiving it correctly.
     console.log(`[SERVER] Received drawing event for room: ${data.roomId}`);
     if (data.roomId) {
       socket.to(data.roomId).emit('drawing', data);
@@ -47,7 +51,6 @@ io.on('connection', (socket) => {
   });
 });
 
-// API Routes for Persistence...
 app.get('/api/board/:roomId', async (req, res) => {
   try {
     const board = await db.Whiteboard.findByPk(req.params.roomId);
