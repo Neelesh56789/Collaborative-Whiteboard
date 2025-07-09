@@ -6,7 +6,6 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 
 const MONGO_URI = process.env.MONGO_URI;
-const FRONTEND_URL = process.env.FRONTEND_URL;
 const PORT = process.env.PORT || 3001;
 
 if (!MONGO_URI) {
@@ -16,13 +15,12 @@ if (!MONGO_URI) {
 
 const app = express();
 const server = http.createServer(app);
-
-app.use(cors({ origin: FRONTEND_URL }));
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 
 const io = new Server(server, {
   cors: {
-    origin: FRONTEND_URL,
+    origin: "*",
     methods: ["GET", "POST"]
   }
 });
