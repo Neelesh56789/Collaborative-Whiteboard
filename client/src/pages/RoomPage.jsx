@@ -5,8 +5,6 @@ import Board from '../components/Board';
 import Toolbar from '../components/Toolbar';
 import HeaderControls from '../components/HeaderControls';
 
-const SERVER_URL = "http://localhost:3001";
-
 const RoomPage = () => {
   const { roomId } = useParams();
   const boardRef = useRef(null);
@@ -18,38 +16,39 @@ const RoomPage = () => {
   useEffect(() => {
     socket.connect();
     socket.emit("join_room", roomId);
-    return () => { socket.disconnect(); };
-  }, [roomId]);
+    socket.on('load_content', (savedContent) => {
+      if (savedContent && boardRef.current) {
+        boardRef.current.loadCanvasFromDataURL(savedContent);
+      }
+    });
 
-  useEffect(() => {
-    const loadBoard = async () => {
-      try {
-        const res = await fetch(`${SERVER_URL}/api/board/${roomId}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.content) boardRef.current?.loadCanvasFromDataURL(data.content);
-        }
-      } catch (error) { console.error("Failed to load board state:", error); }
+    const handleSaveSuccess = (message) => {
+      alert(message);
     };
-    setTimeout(loadBoard, 500);
+    socket.on('save_success', handleSaveSuccess);
+    
+    socket.on('save_error', (message) => alert(`Error: ${message}`));
+    socket.on('load_error', (message) => alert(`Error: ${message}`));
+
+    return () => {
+      socket.off('load_content');
+      socket.off('save_success', handleSaveSuccess); 
+      socket.off('save_error');
+      socket.off('load_error');
+      socket.disconnect();
+    };
   }, [roomId]);
 
-  const handleClear = () => boardRef.current?.clearCanvas();
+  const handleClear = () => {
+    if (boardRef.current) {
+      boardRef.current.clearCanvas();
+    }
+  };
 
-  const handleSave = async () => {
-    const content = boardRef.current?.getCanvasAsDataURL();
-    if (!content) return alert('Could not get board content.');
-    try {
-      const res = await fetch(`${SERVER_URL}/api/board`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roomId, content }),
-      });
-      if (res.ok) alert('Board saved successfully!');
-      else alert(`Failed to save board: ${res.statusText}`);
-    } catch (error) { 
-      console.error("Save error:", error);
-      alert('Failed to save board. Check console for details.'); 
+  const handleSave = () => {
+    if (boardRef.current) {
+      const content = boardRef.current.getCanvasAsDataURL();
+      socket.emit('save_board', { roomId, content });
     }
   };
 
